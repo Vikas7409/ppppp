@@ -1,0 +1,87 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
+using Microsoft.Identity.Client;
+using NewProjectTask.Models;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace NewProjectTask.Controllers
+{
+    public class HomeController : Controller
+    {
+        private readonly ILogger<HomeController> _logger;
+
+        public HomeController(ILogger<HomeController> logger)
+        {
+            _logger = logger;
+        }
+
+        public async Task<IActionResult> Index()
+        {
+            var scopes = new[] { "User.Read" };
+
+            // Multi-tenant apps can use "common",
+            // single-tenant apps must use the tenant ID from the Azure portal
+            var tenantId = "955bffd8-6d60-47e7-84fa-648347c32ce7";
+
+            // Value from app registration
+            var clientId = "8a86fac6-2185-42a8-81a1-e35da9615bcb";
+
+            var pca = PublicClientApplicationBuilder
+                .Create(clientId)
+                .WithTenantId(tenantId)
+                .Build();
+
+            // DelegateAuthenticationProvider is a simple auth provider implementation
+            // that allows you to define an async function to retrieve a token
+            // Alternatively, you can create a class that implements IAuthenticationProvider
+            // for more complex scenarios
+            try
+            {
+                object results = null;
+                var authProvider = new DelegateAuthenticationProvider(async (request) =>
+                {
+                    // Use Microsoft.Identity.Client to retrieve token
+                    var result = await pca.AcquireTokenByIntegratedWindowsAuth(scopes).ExecuteAsync();
+                    results = result;
+
+                    request.Headers.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.AccessToken);
+                });
+
+                object dsdsd = results;
+                //var graphClient = new GraphServiceClient(authProvider);
+
+
+                GraphServiceClient graphClient = new GraphServiceClient(authProvider);
+
+                var users = await graphClient.Users
+                    .Request()
+                    .GetAsync();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+
+            return View();
+        }
+
+        public IActionResult Privacy()
+        {
+            return View();
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+    }
+}
